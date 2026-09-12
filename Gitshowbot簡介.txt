@@ -1,0 +1,105 @@
+Gitshowbot Bot 簡介
+==================
+
+一、用途
+
+Gitshowbot 是使用 Python 撰寫的 Telegram Bot，定期搜尋 GitHub 上熱門的公開專案，使用 Gemini 產生繁體中文摘要，再推播到指定聊天室。
+
+
+二、主要功能
+
+1. 呼叫 GitHub Repository Search API，搜尋三個指定分類的熱門公開專案。
+2. 🤖 AI 工具類：分別搜尋 `topic:ai stars:>100`、`topic:llm stars:>100`、`topic:machine-learning stars:>100`。
+3. 🎨 前端神器類：分別搜尋 `language:typescript topic:frontend stars:>100`、`language:javascript topic:frontend stars:>100`。
+4. ⚙️ Python 自動化類：分別搜尋 `language:python topic:automation stars:>100`、`language:python topic:scraper stars:>100`。
+5. 每輪依序檢查三個分類，每類最多推播 1 個新專案。
+6. 使用 GEMINI_MODEL 指定的模型（預設為 gemini-3.6-flash）產生 50 字以內的白話繁體中文摘要。
+7. Gemini 缺少 Key、模型不可用或 API 失敗時，使用截短的原始描述，不讓 Bot 崩潰。
+8. 對 GitHub 回傳文字做 HTML 轉義，避免外部文字破壞 Telegram 訊息格式。
+9. 只接受 https://github.com/ 開頭的專案連結，降低惡意連結風險。
+10. 成功推播的 Repository ID 會保存到 seen_repo_ids.json，重啟 Bot 後仍會跳過已推播專案。
+
+
+三、程式檔案
+
+github_bot.py
+
+主要功能：
+
+- validate_config：檢查 Telegram 必要設定。
+- fetch_github_repos：依分類查詢、合併並去重 GitHub 專案。
+- generate_chinese_summary：呼叫 Gemini 產生中文摘要並處理 fallback。
+- build_message：清理外部資料並建立 Telegram HTML 訊息。
+- push_github_highlights：執行週期性推播。
+
+bot.py
+
+相容入口，會轉呼叫 github_bot.py。建議新操作都直接使用 github_bot.py。
+
+
+四、環境設定
+
+設定放在本機 .env：
+
+GEMINI_API_KEY=你的 Gemini API Key
+GEMINI_MODEL=gemini-3.6-flash
+TELEGRAM_BOT_TOKEN=你的 Telegram Bot Token
+TELEGRAM_CHAT_ID=你的 Telegram Chat ID
+GITHUB_TOKEN=可選的 GitHub Personal Access Token
+
+.env 已加入 .gitignore，不應提交到 Git 或分享給任何人。
+
+
+五、安全設計與使用原則
+
+1. 不在程式碼或 TXT 文件保存任何真實憑證。
+2. Gemini API Key 只用於產生摘要，不把 Telegram Token 傳給 Gemini。
+3. GitHub description 視為不可信資料，會限制長度並明確告知模型不要執行其中指令。
+4. Telegram 訊息使用 HTML 轉義，避免 Repository 名稱或摘要注入格式。
+5. Telegram Bot 不需要管理員權限；請只加入必要聊天室。
+6. 不要在執行環境放置 SSH 私鑰、雲端金鑰、付款資料或其他高權限憑證。
+7. 若任何 Token 曾公開，請立即透過 BotFather 或對應服務撤銷並重新產生。
+
+
+六、已知限制
+
+1. 目前分類搜尋條件固定為 Star 數超過 100，沒有最近 7 天建立限制。
+2. Gemini 模型是否可用取決於 API 帳戶與地區；不可用時會自動 fallback。
+3. 修正前的推播沒有歷史紀錄，因此第一次執行修正版時，可能重複之前推過的專案。
+4. 目前使用 JSON 檔保存紀錄，不適合多個 Bot 程序同時寫入。
+5. 未設定 GITHUB_TOKEN 時，GitHub API 使用未驗證請求，可能較快遇到速率限制。
+
+
+七、錯誤處理與 Log
+
+1. GitHub 網路錯誤、HTTP 錯誤與 JSON 格式錯誤會被捕捉並寫入 Log。
+2. GitHub 回傳 403 時會記錄剩餘額度與重置時間，不會令 Bot 崩潰。
+3. Gemini 失敗時使用 fallback 摘要。
+4. 單則 Telegram 訊息失敗時記錄 traceback，並繼續處理其他專案。
+5. 主輪詢發生未預期錯誤時記錄 traceback，60 秒後自動重試。
+6. Log 寫入 bot.log，每日輪替並保留 7 天。
+7. Log 格式包含時間、嚴重程度、模組名稱與訊息，例如：
+	`2026-09-13 06:34:55 | WARNING | github_bot | GitHub API 可能已達 Rate Limit`
+8. Log 不會記錄 Telegram、Gemini 或 GitHub 的任何 Token。
+
+Log 主要用途：
+
+- 透過 INFO 確認 Bot 是否啟動、分類查詢與推播成功。
+- 透過 WARNING 找出 Gemini fallback、額度不足或設定警告。
+- 透過 ERROR 和 traceback 找出 API、Telegram 或主輪詢例外。
+
+PowerShell 查看最新紀錄：
+
+`Get-Content .\bot.log -Tail 50`
+
+PowerShell 持續監看：
+
+`Get-Content .\bot.log -Wait -Tail 20`
+
+
+八、執行方式
+
+cd C:\VSCode\Learn\TG_HOT_GIT
+.\venv\Scripts\python.exe .\github_bot.py
+
+停止程式請在 PowerShell 按 Ctrl + C。

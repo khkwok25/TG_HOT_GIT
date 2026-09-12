@@ -1,0 +1,9 @@
+.env
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+seen_repo_ids.json
+seen_repo_ids.tmp
+bot.log
+bot.log.*

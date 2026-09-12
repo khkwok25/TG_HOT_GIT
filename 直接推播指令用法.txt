@@ -1,0 +1,122 @@
+Gitshowbot 直接推播指令用法
+============================
+
+一、進入專案資料夾
+
+cd C:\VSCode\Learn\TG_HOT_GIT
+
+
+二、安裝或更新套件
+
+.\venv\Scripts\python.exe -m pip install requests python-dotenv python-telegram-bot google-genai
+
+
+三、檢查程式語法
+
+.\venv\Scripts\python.exe -m py_compile .\github_bot.py .\bot.py
+
+
+四、安全試跑，不發送 Telegram 訊息
+
+以下指令只檢查設定並讀取 GitHub API，不會傳送 Telegram 訊息：
+
+.\venv\Scripts\python.exe -c "import github_bot; github_bot.validate_config(); print('設定檢查成功'); print('分類數:', len(github_bot.CATEGORY_QUERIES))"
+
+
+五、啟動 Bot 並立即推播
+
+.\venv\Scripts\python.exe .\github_bot.py
+
+啟動後會：
+1. 依序搜尋 AI 工具、前端神器、Python 自動化三個分類。
+2. 每個分類使用自己的 GitHub Search API Query，並依 Star 數排序。
+3. 每個分類最多推播 1 個新專案，整輪最多 3 個專案。
+4. 使用 Gemini 嘗試產生 50 字以內的繁體中文摘要。
+5. Gemini 缺少 Key 或 API 失敗時，改用安全的原始描述摘要。
+6. 每則訊息間隔 3 秒，標題會顯示對應分類名稱。
+7. 完成後等待 6 小時再檢查。
+8. 每次成功推播後，把 Repository ID 保存到 seen_repo_ids.json，重啟後也不會重複推播。
+
+舊的 bot.py 現在只是相容入口，也可以執行，但建議統一使用 github_bot.py。
+
+
+六、必要的 .env 設定
+
+GEMINI_API_KEY=你的 Gemini API Key
+GEMINI_MODEL=gemini-3.6-flash
+TELEGRAM_BOT_TOKEN=你的 Telegram Bot Token
+TELEGRAM_CHAT_ID=你的 Telegram Chat ID
+GITHUB_TOKEN=可選的 GitHub Personal Access Token
+
+.env 必須只保存在本機，且已由 .gitignore 排除。
+不要把真實 Key 或 Token 寫進 TXT、程式碼、GitHub Repository、截圖或聊天訊息。
+
+
+七、停止 Bot
+
+在執行中的 PowerShell 視窗按下：
+
+Ctrl + C
+
+
+八、安全注意事項
+
+1. 如果 Token 或 API Key 曾經公開，不能只刪除文字，必須立即撤銷並重新產生。
+2. Telegram Bot 只加入必要的聊天室，不要給管理員權限，除非功能確實需要。
+3. 不要用管理員帳號的 Token、SSH Key、雲端金鑰或付款資料執行這個專案。
+4. 定期更新套件，並在更新前查看套件來源與變更內容。
+5. 已推播紀錄保存在 seen_repo_ids.json，這個檔案已加入 .gitignore，不會提交到 Git。
+6. 修正前的推播沒有歷史紀錄可追溯；第一次執行修正版時，仍可能重複之前推過的專案。成功推播後，之後會持久化避免重複。
+
+
+九、查看 24 小時運作紀錄
+
+執行紀錄會保存到 bot.log。
+Log 會記錄以下事件：
+
+1. Bot 啟動與停止。
+2. GitHub 分類搜尋與 API 網路錯誤。
+3. GitHub 403 額度警告、剩餘額度與重置時間。
+4. Gemini 摘要失敗與 fallback。
+5. Telegram 成功推播與單則訊息錯誤。
+6. 未預期錯誤的完整 traceback。
+7. 已推播紀錄檔讀取或保存錯誤。
+
+Log 格式範例：
+
+2026-09-13 06:34:55 | WARNING | github_bot | GitHub API 可能已達 Rate Limit
+
+Log 每日午夜自動輪替，保留最近 7 天。Log 不會記錄 Telegram Token、Gemini API Key 或 GitHub Token。
+
+查看最新 50 行：
+
+Get-Content .\bot.log -Tail 50
+
+搜尋錯誤與額度警告：
+
+Select-String -Path .\bot.log -Pattern "ERROR|WARNING|失敗|Rate Limit"
+
+持續監看新 Log：
+
+Get-Content .\bot.log -Wait -Tail 20
+
+
+十、清理歷史紀錄
+
+清空已推播 Repository 歷史，讓 Bot 重新允許推播所有符合條件的專案：
+
+雙擊執行：
+
+clear_seen_repos.bat
+
+或在 PowerShell 執行：
+
+cmd /c ".\clear_seen_repos.bat"
+
+清理目前 Log 及所有輪替 Log：
+
+雙擊執行：
+
+clear_logs.bat
+
+執行前請先停止 Bot。清理 Log 只會刪除 bot.log，不會刪除程式碼、設定或已推播資料。
