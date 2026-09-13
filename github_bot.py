@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta, timezone
 import html
 import json
 import logging
@@ -23,9 +24,11 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
 CHECK_INTERVAL_SECONDS = 6 * 60 * 60
+SEEN_REPOSITORIES_RESET_INTERVAL = timedelta(days=14)
 MAX_REPOSITORIES_PER_CATEGORY = 1
 MAX_DESCRIPTION_LENGTH = 2_000
 SEEN_REPOSITORIES_PATH = Path(__file__).resolve().parent / "seen_repo_ids.json"
+SEEN_REPOSITORIES_RESET_PATH = Path(__file__).resolve().parent / "seen_repo_reset_at.txt"
 LOG_PATH = Path(__file__).resolve().parent / "bot.log"
 
 
@@ -125,6 +128,41 @@ def save_seen_repo_ids(repo_ids: set[int]) -> None:
         temporary_path.replace(SEEN_REPOSITORIES_PATH)
     except OSError as error:
         logger.error("已推播紀錄無法保存：%s", error)
+
+
+def reset_seen_repo_ids_if_due(now: datetime | None = None) -> None:
+    """每十四天清空一次已推播紀錄，且重啟後仍能延續計時。"""
+    current_time = now or datetime.now(timezone.utc)
+
+    try:
+        reset_at_text = SEEN_REPOSITORIES_RESET_PATH.read_text(encoding="utf-8").strip()
+        last_reset_at = datetime.fromisoformat(reset_at_text)
+        if last_reset_at.tzinfo is None:
+            last_reset_at = last_reset_at.replace(tzinfo=timezone.utc)
+    except (FileNotFoundError, OSError, ValueError):
+        last_reset_at = current_time
+        try:
+            SEEN_REPOSITORIES_RESET_PATH.write_text(
+                current_time.isoformat(),
+                encoding="utf-8",
+            )
+        except OSError as error:
+            logger.warning("自動重置時間無法保存：%s", error)
+        return
+
+    if current_time - last_reset_at < SEEN_REPOSITORIES_RESET_INTERVAL:
+        return
+
+    seen_repo_ids.clear()
+    save_seen_repo_ids(seen_repo_ids)
+    try:
+        SEEN_REPOSITORIES_RESET_PATH.write_text(
+            current_time.isoformat(),
+            encoding="utf-8",
+        )
+    except OSError as error:
+        logger.error("自動重置時間無法保存：%s", error)
+    logger.info("已自動重置已推播紀錄，下一次重置將在 14 天後執行")
 
 
 seen_repo_ids = load_seen_repo_ids()
@@ -262,6 +300,7 @@ async def push_github_highlights() -> None:
 
         while True:
             try:
+                reset_seen_repo_ids_if_due()
                 for category_name in CATEGORY_QUERIES:
                     repositories = fetch_github_repos(category_name)
                     sent_count = 0

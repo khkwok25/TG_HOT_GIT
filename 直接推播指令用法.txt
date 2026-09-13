@@ -36,6 +36,7 @@ cd C:\VSCode\Learn\TG_HOT_GIT
 6. 每則訊息間隔 3 秒，標題會顯示對應分類名稱。
 7. 完成後等待 6 小時再檢查。
 8. 每次成功推播後，把 Repository ID 保存到 seen_repo_ids.json，重啟後也不會重複推播。
+9. 每 14 天自動清空 seen_repo_ids，並保存重置時間；不需要登入 Render 手動重置。
 
 舊的 bot.py 現在只是相容入口，也可以執行，但建議統一使用 github_bot.py。
 
@@ -67,6 +68,7 @@ Ctrl + C
 4. 定期更新套件，並在更新前查看套件來源與變更內容。
 5. 已推播紀錄保存在 seen_repo_ids.json，這個檔案已加入 .gitignore，不會提交到 Git。
 6. 修正前的推播沒有歷史紀錄可追溯；第一次執行修正版時，仍可能重複之前推過的專案。成功推播後，之後會持久化避免重複。
+7. 自動重置時間保存在 seen_repo_reset_at.txt，這個檔案由程式管理並已加入 .gitignore。
 
 
 九、查看 24 小時運作紀錄

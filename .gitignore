@@ -5,5 +5,6 @@ __pycache__/
 .pytest_cache/
 seen_repo_ids.json
 seen_repo_ids.tmp
+seen_repo_reset_at.txt
 bot.log
 bot.log.*

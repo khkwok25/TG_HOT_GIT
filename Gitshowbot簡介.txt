@@ -18,6 +18,7 @@ Gitshowbot 是使用 Python 撰寫的 Telegram Bot，定期搜尋 GitHub 上熱�
 8. 對 GitHub 回傳文字做 HTML 轉義，避免外部文字破壞 Telegram 訊息格式。
 9. 只接受 https://github.com/ 開頭的專案連結，降低惡意連結風險。
 10. 成功推播的 Repository ID 會保存到 seen_repo_ids.json，重啟 Bot 後仍會跳過已推播專案。
+11. 每 14 天自動清空一次 seen_repo_ids，並將重置時間保存到 seen_repo_reset_at.txt，無需登入 Render 手動重置。
 
 
 三、程式檔案
@@ -68,6 +69,7 @@ GITHUB_TOKEN=可選的 GitHub Personal Access Token
 3. 修正前的推播沒有歷史紀錄，因此第一次執行修正版時，可能重複之前推過的專案。
 4. 目前使用 JSON 檔保存紀錄，不適合多個 Bot 程序同時寫入。
 5. 未設定 GITHUB_TOKEN 時，GitHub API 使用未驗證請求，可能較快遇到速率限制。
+6. 已推播紀錄每 14 天自動清空一次；清空後，符合條件的舊專案可能再次被推播。
 
 
 七、錯誤處理與 Log
